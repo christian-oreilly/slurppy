@@ -1,0 +1,13 @@
+slurm:
+  default:
+    mem_per_cpu: "10G"
+    ntask: 1
+    time: "6:00:00"
+    small:
+      mem_per_cpu: "1G"
+      ntask: 1
+      time: "0:10:00"
+
+analysis: {}
+
+paths: {}

@@ -1,0 +1,29 @@
+#!/cvmfs/soft.computecanada.ca/nix/var/nix/profiles/16.09/bin/sh
+#
+#SBATCH --job-name={{job_name}}
+#SBATCH --output={{file_name_log}}
+{%- if send_emails is sameas true  -%}
+#SBATCH --mail-type=END,FAIL          # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user={{email}}
+{%- endif -%}
+{%- if ntask is defined -%}
+#SBATCH --ntasks={{ntask}}
+{%- else -%}
+#SBATCH --ntasks=1
+{%- endif -%}
+{%- if nodes is defined -%}
+#SBATCH --nodes={{nodes}}
+{%- else -%}
+#SBATCH --nodes=1
+{%- endif -%}
+{%- if cpus_per_task is defined -%}
+#SBATCH --cpus-per-task={{cpus_per_task}}
+{%- endif -%}
+#SBATCH --time={{time}}
+{%- if mem_per_cpu is defined -%}
+#SBATCH --mem-per-cpu={{mem_per_cpu}}
+{%- endif -%}
+#SBATCH --account={{account}}
+
+source {{venv_path}}
+{{command}}
