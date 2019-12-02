@@ -1,23 +1,30 @@
 from pathlib import Path
-from slurppy import Pipeline, ProcessingStep, Campaign
-import pytest
+from slurppy import Pipeline, Campaign, Config
 from shutil import which
 
+from . import mocked_input
+from .test_pipeline import test_save_dummy_pipeline
 
-#@pytest.mark.dependency(depends=['slurppy/slurppy/tests/test_pipeline.py::test_pipeline_add_step'], scope="session")
-def test_pipeline_add_step():
+
+def test_pipeline_add_step(mocked_input):
+    test_save_dummy_pipeline(mocked_input)
     path = Path(__file__).parent / "test_artifacts" / "pipeline.pln"
     pipeline = Pipeline().load(path)
 
-    campaign = Campaign(name="test_campaign")
+    campaign = Campaign(name="test_campaign",
+                        config=Config({"analysis": {"dummy_arg_2":["level1", "level2", "level3"],
+                                                    "dummy_arg_3":["sublevel1", "sublevel2"]}}))
 
-    # To avoid input asked to the used during tests
-    if "account" not in campaign.config["slurm"]:
-        campaign.config["slurm"]["account"] = "dummy_account"
-    if "venv_path" not in campaign.config["paths"]:
-        campaign.config["paths"]["venv_path"] = "dummy_venv"
+    campaign.pipeline = pipeline
+    assert(id(pipeline) == id(campaign.pipeline))
 
-    campaign.set_workflow(pipeline, job_dependencies={})
-    campaign.show_workflow()
+    assert(len(campaign.pipeline.processing_steps["test_dummy_func1"]._jobs) == 1)
+    assert(len(campaign.pipeline.processing_steps["test_dummy_func2"]._jobs) == 3)
+
+    campaign.show_pipeline()
     campaign.load_or_run(rerun=True, test=(which('sbatch') is None))
-    #campaign.print_status()
+
+    print(campaign.pipeline)
+
+    if which('sacct') is not None:
+        campaign.print_status()
