@@ -1,0 +1,11 @@
+analysis: {}
+paths:
+  log: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
+  output: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
+  slurm: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
+  tmp: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
+  venv: ''
+slurm:
+  account: ''
+  email: ''
+  send_emails: false

@@ -73,7 +73,7 @@ class StepDependency:
         return self._job_dependencies.copy()
 
     @job_dependencies.setter
-    def job_dependencies(self):
+    def job_dependencies(self, _):
         warn("Values cannot be set directly to job_dependencies. Use add_job_dependency instead.")
 
 
@@ -88,7 +88,7 @@ class Dependencies:
         return self._dep_by_depended_step.copy()
 
     @dep_by_depended_step.setter
-    def dep_by_depended_step(self):
+    def dep_by_depended_step(self, _):
         warn("Values cannot be set directly to dep_by_depended_step. Use add_*_dependency instead.")
 
     @property
@@ -96,7 +96,7 @@ class Dependencies:
         return self._dep_by_job_key.copy()
 
     @dep_by_job_key.setter
-    def dep_by_job_key(self):
+    def dep_by_job_key(self, _):
         warn("Values cannot be set directly to dep_by_job_key. Use add_*_dependency instead.")
 
     def to_json(self):
@@ -111,11 +111,14 @@ class Dependencies:
         :return: None
         """
         step_dependency = StepDependency(depend_on_name, type_)
-        if step_dependency.key() not in self.dep_by_depended_step :
+        if step_dependency.key() not in self.dep_by_depended_step:
             self._dep_by_depended_step[step_dependency.key()] = step_dependency
 
-
-    def add_job_dependency(self, job_key: KeyDict, slurm_ids: list, depend_on_name : str, type_: str = "afterok"):
+    def add_job_dependency(self,
+                           job_key: KeyDict,
+                           slurm_ids: list,
+                           depend_on_name: str,
+                           type_: str = "afterok"):
         """
          Add a dependency between jobs of the depending (i.e., the ProcessingStep that has this Dependencies object;
          the child) and the dependent (the step specified by depend_on_name) steps.  Such dependency can be
@@ -150,7 +153,8 @@ class Dependencies:
             self.dep_by_job_key[job_key] = {type_: slurm_ids}
 
     def get_all_depended_names(self):
-        return np.unique([step_dependency.depend_on_name for step_dependency in self.dep_by_depended_step.values()]).tolist()
+        return np.unique([step_dependency.depend_on_name
+                          for step_dependency in self.dep_by_depended_step.values()]).tolist()
 
     def get_ids_for_key(self, job_key, type_=None):
         """

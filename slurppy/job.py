@@ -67,16 +67,16 @@ class Job:
         return "_".join(np.concatenate(([step.name], list(id_key.values()))))
 
     def set_file_names(self):
-        if "slurm_dir" in self.processing_step.config["paths"]:
-            slurm_path = Path(self.processing_step.config["paths"]["slurm_dir"])
-        else:
-            slurm_path = Path()
+        #if "slurm_dir" in self.processing_step.config["paths"]:
+        slurm_path = Path(self.processing_step.config["paths"]["slurm"])
+        #else:
+        #    slurm_path = Path()
         slurm_path = (slurm_path / self.name).with_suffix(".sh")
 
-        if "log_dir" in self.processing_step.config["paths"]:
-            log_path = Path(self.processing_step.config["paths"]["log_dir"])
-        else:
-            log_path = Path()
+        #if "log_dir" in self.processing_step.config["paths"]:
+        log_path = Path(self.processing_step.config["paths"]["log"])
+        #else:
+        #    log_path = Path()
         log_path = (log_path / self.name).with_suffix(".log")
 
         try:

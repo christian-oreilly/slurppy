@@ -8,14 +8,18 @@ import matplotlib.image as mpimg
 import numpy as np
 import typing
 from warnings import warn
-
-from .config import Config
-
+from configmng import Config
+from tempfile import NamedTemporaryFile
+import os
 
 class Pipeline:
     def __init__(self, name="slurppy_pipeline"):
         self.processing_steps = OrderedDict()
-        self.config = Config()
+
+        # The pipeline gets its config from the campaign when
+        # they are associated with campaign.pipeline = pipeline
+        self._config = None
+
         self.name = name
         self.file_name = None
 
@@ -46,8 +50,14 @@ class Pipeline:
     def to_json(self):
         return {self.name: {name: step.to_json() for name, step in self.processing_steps.items()}}
 
+    def _check_pipeline_associated_with_campaing_(self):
+        if self._config is None:
+            raise ValueError("This operation cannot be performed before the pipeline is "
+                             "associated with a campaign using 'campaign.pipeline = pipeline'.")
+
     @property
     def config(self):
+        self._check_pipeline_associated_with_campaing_()
         return self._config
 
     @config.setter
@@ -72,8 +82,10 @@ class Pipeline:
             raise ValueError(msg.format(name=processing_step.name))
 
         self.processing_steps[processing_step.name] = processing_step
-        self.processing_steps[processing_step.name].config = self.config
         self.processing_steps[processing_step.name].pipeline = self
+
+        if self._config is not None:
+            self.processing_steps[processing_step.name].config = self.config
 
     def remove_step(self, name):
         del self.processing_steps[name]
@@ -88,7 +100,7 @@ class Pipeline:
     def _check_file_name_(self, file_name):
         if file_name is None:
             if self.file_name is None:
-                self.file_name = (Path(self.config["paths"]["output_root"]) / self.name).with_suffix(".pln")
+                self.file_name = (Path(self.config["paths"]["output"]) / self.name).with_suffix(".pln")
         else:
             if isinstance(file_name, str):
                 file_name = Path(file_name)
@@ -107,7 +119,7 @@ class Pipeline:
             loaded_pipeline = pickle.load(f)
 
         self.processing_steps = loaded_pipeline.processing_steps
-        self._config = loaded_pipeline.config
+        self._config = loaded_pipeline._config
         self.name = loaded_pipeline.name
         self.file_name = loaded_pipeline.file_name
         return loaded_pipeline
@@ -125,16 +137,6 @@ class Pipeline:
         for step_name in self.processing_steps:
             if step_name not in exclude:
                 self.processing_steps[step_name].run_jobs(verbose=verbose, test=test)
-
-    # def set_dep_after(self):
-    #    for job_name, processing_step in self.pipeline.items():
-    #        if job_name in self.job_dependencies:
-    #            for job_dependency in self.job_dependencies[job_name]:
-    #                if job_dependency not in self.jobs:
-    #                    raise ValueError(job_name + " depends on " + job_dependency +
-    #                                     ", but no such job has been ran.")
-    #            processing_step.dep_after = [self.jobs[job_dependency].job_ids
-    #                                         for job_dependency in self.job_dependencies[job_name]]
 
     def print_status(self):
         for step in self.processing_steps.values():
@@ -160,6 +162,7 @@ class Pipeline:
         return step.run_a_job(self, job.id_key, dep_sup=dep_sup)
 
     def ready_jobs(self, small=False, resume=True, verbose=None):
+        self._check_pipeline_associated_with_campaing_()
         for step in self.processing_steps.values():
             step.ready_jobs(small, resume, verbose)
 
@@ -167,7 +170,7 @@ class Pipeline:
         block_test = "blockdiag {\n"
 
         if len(self.processing_steps) == 1:
-           block_test += "    {};".format(list(self.processing_steps.values())[0].name)
+            block_test += "    {};".format(list(self.processing_steps.values())[0].name)
         else:
             if expand:
                 for child_step in self.processing_steps.values():
@@ -184,16 +187,17 @@ class Pipeline:
 
         block_test += "}\n"
 
-        with open("diagram", "w") as f:
+        temp_file = NamedTemporaryFile()
+        with open(temp_file.name, "w") as f:
             f.write(block_test)
 
         size = "--size={}x{}".format(resolution*figsize[0], resolution*figsize[1])
-        subprocess.check_output(["blockdiag", size, "diagram"])
-
+        subprocess.check_output(["blockdiag", size, temp_file.name])
         fig, axes = plt.subplots(1, 1, figsize=figsize)
-        img = mpimg.imread('diagram.png')
+        img = mpimg.imread(temp_file.name + '.png')
         axes.imshow(img)
         plt.axis('off')
+        os.remove(temp_file.name + '.png')
 
     def get_status(self):
         status = {}

@@ -1,6 +1,7 @@
 from pathlib import Path
-from slurppy import Pipeline, Campaign, Config
+from slurppy import Pipeline, Campaign
 from shutil import which
+from configmng import Config
 
 from . import mocked_input
 from .test_pipeline import test_save_dummy_pipeline
@@ -12,8 +13,8 @@ def test_pipeline_add_step(mocked_input):
     pipeline = Pipeline().load(path)
 
     campaign = Campaign(name="test_campaign",
-                        config=Config({"analysis": {"dummy_arg_2":["level1", "level2", "level3"],
-                                                    "dummy_arg_3":["sublevel1", "sublevel2"]}}))
+                        config=Config({"analysis": {"dummy_arg_2": ["level1", "level2", "level3"],
+                                                    "dummy_arg_3": ["sublevel1", "sublevel2"]}}))
 
     campaign.pipeline = pipeline
     assert(id(pipeline) == id(campaign.pipeline))
@@ -28,3 +29,16 @@ def test_pipeline_add_step(mocked_input):
 
     if which('sacct') is not None:
         campaign.print_status()
+
+
+
+def test_no_config(mocked_input):
+    Campaign(name="test_campaign")
+
+
+def test_invalid_config(mocked_input):
+    campaign = Campaign(name="test_campaign",
+                        config={"instance_configs":[],
+                                "user_config_path":{},
+                                "project_config_path": {},
+                                "application_config_path":{}})

@@ -8,10 +8,10 @@ from jinja2 import Template
 from warnings import warn
 from pathlib import Path
 import typing
+from configmng import Config
 
 from .dependencies import Dependencies
 from .job import Job, KeyDict
-from .config import Config
 from .pipeline import Pipeline
 
 
@@ -43,7 +43,7 @@ class ProcessingStep:
                                  slurm configuration key.
         """
         self.name: str = name
-        self._config: Config = Config({"analysis": {}})
+        self._config: Config = None
         self.slurm_config_key: str = slurm_config_key
 
         self.candidate_properties: Iterable = sorted(candidate_properties)
@@ -190,7 +190,6 @@ class ProcessingStep:
                              "the pipeline in order they depend on each other.")
         return self._jobs[parent_job_key]
 
-
     def get_slurm_id_by_partial_key_matching(self, child_job: Job):
         return self.get_job_by_partial_key_matching(child_job).slurm_id
 
@@ -217,6 +216,7 @@ class ProcessingStep:
 
         # For the properties which levels are specified in the configuration file
         updated_candidate_list = []
+        print(self.config)
         for property_name in self.candidate_properties:
             if property_name in self.config["analysis"]:
                 properties[property_name] = self.config["analysis"][property_name]
@@ -231,11 +231,11 @@ class ProcessingStep:
         for parent_step_name in self._dependencies.get_all_depended_names():
             parent_step = self.pipeline.processing_steps[parent_step_name]
             for parent_job_key in parent_step._jobs:
-                for property, level in parent_job_key.items():
-                    if property not in properties:
+                for property_, level in parent_job_key.items():
+                    if property_ not in properties:
                         properties[property] = [level]
-                    elif level not in properties[property]:
-                        properties[property].append(level)
+                    elif level not in properties[property_]:
+                        properties[property_].append(level)
 
         # Filtering the properties given the specified constraints
         for property_name in properties:
@@ -246,7 +246,6 @@ class ProcessingStep:
                                             if p in self.constraints[property_name]]
                 properties[property_name] = filtered_property_values
 
-        #print("#######1:", properties)
         if len(properties) == 0:
             return []
 
@@ -254,9 +253,7 @@ class ProcessingStep:
         job_keys = []
         for property_values in product(*properties.values()):
             job_keys.append(KeyDict([(name, value) for name, value in zip(property_names, property_values)]))
-        #print("#######2:", job_keys)
-        #print("#######3:", properties.values())
-        #print("#######4:", list(product(*properties.values())))
+
         return job_keys
 
     def get_python_command(self, job, small=False, resume=True):
@@ -286,7 +283,7 @@ class ProcessingStep:
                       "send_emails": self.config["slurm"]["send_emails"],
                       "file_name_log": str(job.file_name_log),
                       "account": self.config["slurm"]["account"],
-                      "venv_path": self.config["paths"]["venv_path"],
+                      "venv_path": self.config["paths"]["venv"],
                       "command": self.get_python_command(job, small, resume)}
 
             if small:
@@ -314,10 +311,6 @@ class ProcessingStep:
         # the candidate properties of the steps it is dependent on.
         self.candidate_properties.extend(self.pipeline.processing_steps[depend_on_name].candidate_properties)
         self.candidate_properties = sorted(np.unique(self.candidate_properties).tolist())
-
-
-    #def add_step_dependency(self, depend_on_name, *args, **kwargs):
-    #    self._dependencies.add_step_dependency(depend_on_name, *args, **kwargs)
 
     def print_status(self):
         for job in self._jobs.values():

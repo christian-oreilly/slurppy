@@ -1,11 +1,11 @@
 from pathlib import Path
-from slurppy import Pipeline, ProcessingStep
+from slurppy import Pipeline, ProcessingStep, Campaign
 from . import mocked_input
-import mock
 
 
 def dummy_func(dummy_arg):
     print(dummy_arg)
+
 
 def test_save_dummy_pipeline(mocked_input):
     pipeline = Pipeline()
@@ -29,7 +29,6 @@ def test_save_dummy_pipeline(mocked_input):
         import_module="slurppy.tests.test_pipeline"
     ))
 
-
     pipeline["test_dummy_func2"].add_dependency("test_dummy_func1")
     pipeline["test_dummy_func3"].add_dependency("test_dummy_func2")
 
@@ -42,9 +41,8 @@ def test_ready_jobs(mocked_input):
     test_save_dummy_pipeline(mocked_input)
     path = Path(__file__).parent / "test_artifacts" / "pipeline.pln"
     pipeline = Pipeline().load(path)
-
-    #with mock.patch.object(__builtins__, 'input', mocked_input_for_check_config):
-    #    pipeline.ready_jobs(verbose=True)
+    campaign = Campaign()
+    campaign.pipeline = pipeline
     pipeline.ready_jobs(verbose=True)
 
 

@@ -1,11 +1,11 @@
 
-from collections.abc import Iterable
 import pickle
 from pathlib import Path
 from warnings import warn
-import typing
+import numpy as np
+from configmng import ConfigMng
+import os
 
-from .config import Config
 from .pipeline import Pipeline
 
 
@@ -13,23 +13,31 @@ class Campaign:
     def __init__(self,
                  small: bool = False,
                  resume: bool = True,
-                 config: typing.Optional[Config] = None,
+                 config=None,
                  name: str = "campaign",
+                 path: str = None,
                  pipeline: Pipeline = None,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 interactive = True):
 
         self.small: bool = small
         self.resume: bool = resume
         self.verbose: bool = verbose
         self.name: str = name
-        self._pipeline: Pipeline = pipeline
-        self.config: typing.Optional[Config] = config
 
-        output_path = Path()
-        if "paths" in self.config:
-            if "output_root" in self.config["paths"]:
-                output_path = Path(self.config["paths"]["output_root"])
-        self.file_name: Path = (output_path / self.name).with_suffix(".cpg")
+        if path is None:
+            path = os.getcwd()
+        self.path: Path = Path(path)
+
+        self._pipeline: Pipeline = pipeline
+        self.config_mng: ConfigMng = ConfigMng(interactive=interactive)
+        self.config = config
+        self.add_default_schemas()
+        self.check_config()
+
+    @property
+    def file_name(self):
+        return (self.path / self.name).with_suffix(".cpg")
 
     def to_json(self):
         return {"name": self.name,
@@ -53,31 +61,55 @@ class Campaign:
 
     @property
     def config(self):
-        return self._config
+        return self.config_mng.config
 
     @config.setter
     def config(self, config):
-        def _check_config_type(config_to_check):
-            if isinstance(config_to_check, (dict, Config, Path)):
-                return [config_to_check]
-            if isinstance(config, Iterable):
-                return [_check_config_type(c) for c in config_to_check]
-            if isinstance(config_to_check, str):
-                return [Path(config_to_check)]
-            if config_to_check is None:
-                return []
-            raise TypeError("Received a config object of an unrecognized type ({}).".format(type(config_to_check)))
+        app_config = Path(__file__).parent.parent / "configs" / "app_default_config.yaml"
+        project_config = self.path / (self.name + "_config.yaml")
+        user_config = Path.home() / ".slurrpy_user_config.yaml"
 
-        config = _check_config_type(config)
-        self._config = Config.get_config(configs=config)  # , load_default=load_default)
+        app_config.touch(exist_ok=True)
+        project_config.touch(exist_ok=True)
+        user_config.touch(exist_ok=True)
 
-        # if isinstance(config, (Config, dict)):
-        #    self._config.update(config)
+        if isinstance(config, dict) and np.all([key in ["instance_configs",
+                                                        "user_config_path",
+                                                        "project_config_path",
+                                                        "application_config_path"]
+                                                for key in config]):
+            if "application_config_path" not in config:
+                config["application_config_path"] = app_config
+            if "user_config_path" not in config:
+                config["user_config_path"] = user_config
+            if "project_config_path" not in config:
+                config["project_config_path"] = project_config
+        else:
+            if config is None:
+                config = []
+            elif not isinstance(config, list):
+                config = [config]
+
+
+            config = {"application_config_path": app_config,
+                      "user_config_path": user_config,
+                      "project_config_path": project_config,
+                      "instance_configs": config}
+
+        self.config_mng.set_configs(**config)
 
         if self.pipeline is not None:
-            self.pipeline.config = self._config
+            self.pipeline.config = self.config
 
-        assert(self._config is not None)
+    def add_default_schemas(self):
+        app_level_schema = Path(__file__).parent.parent / "schemas" / "app_default_schema.yaml"
+        user_level_schema = Path(__file__).parent.parent / "schemas" / "user_default_schema.yaml"
+
+        self.config_mng.add_schema_to_level("application", app_level_schema)
+        self.config_mng.add_schema_to_level("user", user_level_schema)
+
+    def check_config(self):
+        self.config_mng.validate(interactive=True)
 
     @property
     def pipeline(self):
@@ -138,20 +170,21 @@ class Campaign:
         self._check_file_name_(file_name)
 
         with self.file_name.open("wb") as f:
+            self.config_mng.make_serializable()
             pickle.dump(self, f)
         print("Saving campaign as {}.".format(self.file_name))
 
     def load(self, file_name=None):
         self._check_file_name_(file_name)
         with self.file_name.open("rb") as f:
-            loaded_campaign = pickle.load(f)
+            loaded_campaign: Campaign = pickle.load(f)
 
         self.small = loaded_campaign.small
         self.resume = loaded_campaign.resume
         self.verbose = loaded_campaign.verbose
         self.name = loaded_campaign.name
         self._pipeline = loaded_campaign.pipeline
-        self.config = loaded_campaign.config
+        self.config_mng = loaded_campaign.config_mng
         self.file_name = loaded_campaign.file_name
 
         return loaded_campaign
