@@ -2,15 +2,6 @@ name: slurppy_user_default_schema
 type: map
 allowempty: True
 mapping:
-  paths:
-    allowempty: True
-    required: True
-    type: map
-    mapping:
-      venv:
-        pattern: .+
-        required: True
-        type: str
   slurm:
     allowempty: True
     required: True

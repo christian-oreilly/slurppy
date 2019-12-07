@@ -3,7 +3,7 @@ import pickle
 from pathlib import Path
 from warnings import warn
 import numpy as np
-from configmng import ConfigMng
+from configmng import ConfigMng, ConfigArg
 import os
 
 from .pipeline import Pipeline
@@ -63,50 +63,55 @@ class Campaign:
     def config(self):
         return self.config_mng.config
 
+    @staticmethod
+    def get_default_schema():
+        return {
+            "application": Path(__file__).parent.parent / "schemas" / "app_default_schema.yaml",
+            "project": Path(__file__).parent.parent / "schemas" / "project_default_schema.yaml",
+            "user": Path(__file__).parent.parent / "schemas" / "user_default_schema.yaml"
+        }
+
+    def get_default_config(self):
+        return {
+            "application": Path(__file__).parent.parent / "configs" / "app_default_config.yaml",
+            "project": self.path / (self.name + "_config.yaml"),
+            "user": Path.home() / ".slurrpy_user_config.yaml"
+        }
+
     @config.setter
-    def config(self, config):
-        app_config = Path(__file__).parent.parent / "configs" / "app_default_config.yaml"
-        project_config = self.path / (self.name + "_config.yaml")
-        user_config = Path.home() / ".slurrpy_user_config.yaml"
+    def config(self, config: ConfigArg):
 
-        app_config.touch(exist_ok=True)
-        project_config.touch(exist_ok=True)
-        user_config.touch(exist_ok=True)
+        default_config = self.get_default_config()
 
-        if isinstance(config, dict) and np.all([key in ["instance_configs",
-                                                        "user_config_path",
-                                                        "project_config_path",
-                                                        "application_config_path"]
-                                                for key in config]):
-            if "application_config_path" not in config:
-                config["application_config_path"] = app_config
-            if "user_config_path" not in config:
-                config["user_config_path"] = user_config
-            if "project_config_path" not in config:
-                config["project_config_path"] = project_config
+        for config_path in default_config.values():
+            config_path.touch(exist_ok=True)
+
+        if config is None:
+            config = []
+
+        are_level_configs = np.all([key in self.config_mng.level_order for key in config])
+        if isinstance(config, dict) and are_level_configs:
+            for level_name in self.config_mng.level_order:
+                if level_name not in config:
+                    if level_name in default_config:
+                        config[level_name] = default_config[level_name]
+
         else:
-            if config is None:
-                config = []
-            elif not isinstance(config, list):
+
+            if not isinstance(config, list):
                 config = [config]
+            config = {"instance": config}
+            config.update(default_config)
 
-
-            config = {"application_config_path": app_config,
-                      "user_config_path": user_config,
-                      "project_config_path": project_config,
-                      "instance_configs": config}
-
-        self.config_mng.set_configs(**config)
+        for level_name, level_config in config.items():
+            self.config_mng.set_level_configs(level_config, level_name)
 
         if self.pipeline is not None:
             self.pipeline.config = self.config
 
     def add_default_schemas(self):
-        app_level_schema = Path(__file__).parent.parent / "schemas" / "app_default_schema.yaml"
-        user_level_schema = Path(__file__).parent.parent / "schemas" / "user_default_schema.yaml"
-
-        self.config_mng.add_schema_to_level("application", app_level_schema)
-        self.config_mng.add_schema_to_level("user", user_level_schema)
+        for level_name, level_schemas in self.get_default_schema().items():
+            self.config_mng.add_schema(level_schemas, level_name)
 
     def check_config(self):
         self.config_mng.validate(interactive=True)

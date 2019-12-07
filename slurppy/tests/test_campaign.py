@@ -16,6 +16,8 @@ def test_pipeline_add_step(mocked_input):
                         config=Config({"analysis": {"dummy_arg_2": ["level1", "level2", "level3"],
                                                     "dummy_arg_3": ["sublevel1", "sublevel2"]}}))
 
+    print(campaign.config_mng.config)
+
     campaign.pipeline = pipeline
     assert(id(pipeline) == id(campaign.pipeline))
 

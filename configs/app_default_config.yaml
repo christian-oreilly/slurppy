@@ -1,9 +1,9 @@
 analysis: {}
 paths:
-  log: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
-  output: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
-  slurm: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
-  tmp: /home/christian/synchedout/slurppy/slurppy/tests/test_artifacts
+  log: ''
+  output: ''
+  slurm: ''
+  tmp: ''
   venv: ''
 slurm:
   account: ''

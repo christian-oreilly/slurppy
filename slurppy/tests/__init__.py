@@ -28,9 +28,6 @@ def mocked_input_for_check_config(prompt):
     if prompt[:len(msg)] == msg:
         return False
 
-
-
-
     raise ValueError("Not mocked prompted input: '{}'".format(prompt))
 
 

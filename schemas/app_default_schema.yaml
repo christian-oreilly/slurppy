@@ -6,20 +6,7 @@ mapping:
     allowempty: True
     required: True
     type: map
-    mapping:
-      log:
-        pattern: .+
-        required: True
-        type: str
-      slurm:
-        pattern: .+
-        required: True
-        type: str
-      tmp:
-        pattern: .+
-        required: True
-        type: str
-      output:
-        pattern: .+
-        required: True
-        type: str
+  analysis:
+    allowempty: True
+    required: True
+    type: map
